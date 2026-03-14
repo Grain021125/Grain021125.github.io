@@ -1,0 +1,3 @@
+var posts=["2026/03/14/TinyCoro项目-1-io-uring异步IO/","2026/03/13/hello-world/"];function toRandomPost(){
+    pjax.loadUrl('/'+posts[Math.floor(Math.random() * posts.length)]);
+  };
