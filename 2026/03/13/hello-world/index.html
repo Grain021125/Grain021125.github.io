@@ -327,7 +327,7 @@ queueMicrotask(() => {
     const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
 
     Array.from($mermaid).forEach((item, index) => {
-      const mermaidSrc = item.querySelector('.mermaid-src')
+      const mermaidSrc = item.firstElementChild
       const mermaidThemeConfig = '%%{init:{ \'theme\':\'' + theme + '\'}}%%\n'
       const mermaidID = 'mermaid-' + index
       const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
