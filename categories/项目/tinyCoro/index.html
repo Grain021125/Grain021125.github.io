@@ -60,7 +60,7 @@
   isHome: false,
   isHighlightShrink: false,
   isToc: false,
-  postUpdate: '2026-03-15 22:06:19',
+  postUpdate: '2026-03-15 22:11:30',
   postMainColor: '',
 }</script><noscript><style type="text/css">
   #nav {
@@ -360,7 +360,7 @@ queueMicrotask(() => {
   loadMermaid()
 
   // 2. PJAX 切换完成后执行
-  document.addEventListener('pjax:success', loadMermaid)
+  document.addEventListener('pjax:complete', loadMermaid)
 
   // 3. 主题切换时重新渲染
   if (typeof anzhiyu !== 'undefined') {
