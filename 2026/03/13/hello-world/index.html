@@ -320,14 +320,14 @@ queueMicrotask(() => {
     console.warn.bind(console, "%c S013-782 %c 你现在正处于监控中.", "color:white; background-color:#d9534f", "")
   );
 });</script><script async src="/anzhiyu/random.js"></script><div class="js-pjax"><script>(() => {
-  const $mermaid = document.querySelectorAll('#article-container .mermaid_wrap')
+  const $mermaid = document.querySelectorAll('#article-container .mermaid')
   if ($mermaid.length === 0) return
   const runMermaid = () => {
     window.loadMermaid = true
     const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
 
     Array.from($mermaid).forEach((item, index) => {
-      const mermaidSrc = item.firstElementChild
+      const mermaidSrc = item.querySelector('.mermaid-src')
       const mermaidThemeConfig = '%%{init:{ \'theme\':\'' + theme + '\'}}%%\n'
       const mermaidID = 'mermaid-' + index
       const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
@@ -348,9 +348,16 @@ queueMicrotask(() => {
     })
   }
 
-  const loadMermaid = () => {
-    window.loadMermaid ? runMermaid() : getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaid)
+const loadMermaid = () => {
+  if (window.loadMermaid) {
+    runMermaid()
+  } else {
+    getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(() => {
+      mermaid.initialize({ startOnLoad: false }) // 确保初始化
+      runMermaid()
+    })
   }
+}
 
   anzhiyu.addGlobalFn('themeChange', runMermaid, 'mermaid')
 
