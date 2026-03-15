@@ -18,7 +18,7 @@
   localSearch: undefined,
   translate: {"defaultEncoding":2,"translateDelay":0,"msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"简","rightMenuMsgToTraditionalChinese":"转为繁体","rightMenuMsgToSimplifiedChinese":"转为简体"},
   noticeOutdate: undefined,
-  highlight: {"plugin":"prismjs","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":330},
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":330},
   copy: {
     success: '复制成功',
     error: '复制错误',
@@ -256,59 +256,11 @@ if (true) {
     A-->>T1: 返回数据/结果
     Note over T1: 继续执行后续代码</pre>
 <p><code>promise_base</code>保存着协程的状态信息，为其新增成员变量以及修改该成员变量的方法</p>
-<pre class="line-numbers language-cpp" data-language="cpp"><code class="language-cpp">struct promise_type
-&#123;
-    inline auto continuation(std::coroutine_handle&lt;&gt; continuation) noexcept -&gt; void
-    &#123;
-        m_continuation &#x3D; continuation;
-    &#125;
-protected:
-    std::coroutine_handle&lt;&gt; m_continuation&#123;nullptr&#125;; 
-&#125;;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">promise_type</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="function"><span class="keyword">inline</span> <span class="keyword">auto</span> <span class="title">continuation</span><span class="params">(std::coroutine_handle&lt;&gt; continuation)</span> <span class="keyword">noexcept</span> -&gt; <span class="type">void</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        m_continuation = continuation;</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">protected</span>:</span><br><span class="line">    std::coroutine_handle&lt;&gt; m_continuation&#123;<span class="literal">nullptr</span>&#125;; </span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 <p>在task的awaiter里修改 <code>awaiter_suspend()</code>逻辑保存task1协程句柄到task2的promise变量里</p>
-<pre class="line-numbers language-cpp" data-language="cpp"><code class="language-cpp">template&lt;typename return_type&gt;
-class [[CORO_AWAIT_HINT]] task
-&#123;
-public:
-    struct awaitable_base
-    &#123;
-        awaitable_base(coroutine_handle coroutine) noexcept : m_coroutine(coroutine) &#123;&#125;
-
-        auto await_ready() const noexcept -&gt; bool &#123; return !m_coroutine || m_coroutine.done(); &#125;
-
-        auto await_suspend(std::coroutine_handle&lt;&gt; awaiting_coroutine) noexcept -&gt; std::coroutine_handle&lt;&gt;
-        &#123;
-            m_coroutine.promise().continuation(awaiting_coroutine);
-            return m_coroutine;
-        &#125;
-
-        std::coroutine_handle&lt;promise_type&gt; m_coroutine&#123;nullptr&#125;;
-    &#125;;
-&#125;;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> return_type&gt;</span><br><span class="line"><span class="keyword">class</span> [[CORO_AWAIT_HINT]] task</span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">awaitable_base</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="built_in">awaitable_base</span>(coroutine_handle coroutine) <span class="keyword">noexcept</span> : <span class="built_in">m_coroutine</span>(coroutine) &#123;&#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">auto</span> <span class="title">await_ready</span><span class="params">()</span> <span class="type">const</span> <span class="keyword">noexcept</span> -&gt; <span class="type">bool</span> </span>&#123; <span class="keyword">return</span> !m_coroutine || m_coroutine.<span class="built_in">done</span>(); &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">auto</span> <span class="title">await_suspend</span><span class="params">(std::coroutine_handle&lt;&gt; awaiting_coroutine)</span> <span class="keyword">noexcept</span> -&gt; std::coroutine_handle&lt;&gt;</span></span><br><span class="line"><span class="function">        </span>&#123;</span><br><span class="line">            m_coroutine.<span class="built_in">promise</span>().<span class="built_in">continuation</span>(awaiting_coroutine);</span><br><span class="line">            <span class="keyword">return</span> m_coroutine;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        std::coroutine_handle&lt;promise_type&gt; m_coroutine&#123;<span class="literal">nullptr</span>&#125;;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 <p>再新增<code>final_awaiter</code>,它只在final_suspend中调用,因此可以在promise_base作用域内声明，注意将其声明为友元类以获取protected变量访问权；随后修改final_suspend调度逻辑</p>
-<pre class="line-numbers language-cpp" data-language="cpp"><code class="language-cpp">struct promise_base
-&#123;
-    friend struct final_awaitable;
-    struct final_awaitable
-    &#123;
-        constexpr auto await_ready() const noexcept -&gt; bool &#123; return false; &#125;
-
-        template&lt;typename promise_type&gt;
-        auto await_suspend(std::coroutine_handle&lt;promise_type&gt; coroutine) noexcept -&gt; std::coroutine_handle&lt;&gt;
-        &#123;
-            &#x2F;&#x2F; If there is a continuation call it, otherwise this is the end of the line.
-            auto&amp; promise &#x3D; coroutine.promise();
-            return promise.m_continuation !&#x3D; nullptr ? promise.m_continuation : std::noop_coroutine();
-        &#125;
-
-        constexpr auto await_resume() noexcept -&gt; void &#123;&#125;
-    &#125;;
-
-    [[CORO_TEST_USED(lab1)]] auto final_suspend() noexcept -&gt; final_awaitable
-    &#123;
-        return final_awaitable&#123;&#125;;
-    &#125;
-&#125;;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">promise_base</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">friend</span> <span class="keyword">struct</span> <span class="title class_">final_awaitable</span>;</span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">final_awaitable</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="function"><span class="keyword">constexpr</span> <span class="keyword">auto</span> <span class="title">await_ready</span><span class="params">()</span> <span class="type">const</span> <span class="keyword">noexcept</span> -&gt; <span class="type">bool</span> </span>&#123; <span class="keyword">return</span> <span class="literal">false</span>; &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> promise_type&gt;</span></span><br><span class="line"><span class="function">        <span class="keyword">auto</span> <span class="title">await_suspend</span><span class="params">(std::coroutine_handle&lt;promise_type&gt; coroutine)</span> <span class="keyword">noexcept</span> -&gt; std::coroutine_handle&lt;&gt;</span></span><br><span class="line"><span class="function">        </span>&#123;</span><br><span class="line">            <span class="comment">// If there is a continuation call it, otherwise this is the end of the line.</span></span><br><span class="line">            <span class="keyword">auto</span>&amp; promise = coroutine.<span class="built_in">promise</span>();</span><br><span class="line">            <span class="keyword">return</span> promise.m_continuation != <span class="literal">nullptr</span> ? promise.m_continuation : std::<span class="built_in">noop_coroutine</span>();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">constexpr</span> <span class="keyword">auto</span> <span class="title">await_resume</span><span class="params">()</span> <span class="keyword">noexcept</span> -&gt; <span class="type">void</span> </span>&#123;&#125;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    [[<span class="built_in">CORO_TEST_USED</span>(lab1)]] <span class="function"><span class="keyword">auto</span> <span class="title">final_suspend</span><span class="params">()</span> <span class="keyword">noexcept</span> -&gt; final_awaitable</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> final_awaitable&#123;&#125;;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 <p>若continuation指向nullptr则返回<code>std::noop_coroutine()</code>,沿着调用栈向上寻找未挂起的调用者。</p>
 <h1 id="Task-2-为task添加-detach-状态"><a href="#Task-2-为task添加-detach-状态" class="headerlink" title="Task 2: 为task添加 detach 状态"></a>Task 2: 为task添加 detach 状态</h1></article><div class="post-copyright"><div class="copyright-cc-box"><i class="anzhiyufont anzhiyu-icon-copyright"></i></div><div class="post-copyright__author_box"><a class="post-copyright__author_img" target="_blank" rel="noopener" href="https://github.com/Grain021125" title="头像"><img class="post-copyright__author_img_back" src= "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onerror="this.onerror=null,this.src=&quot;/img/404.jpg&quot;" data-lazy-src="https://raw.githubusercontent.com/Grain021125/BlogImag/main/fig/v2-9edb2fdcf08f1149f5d621b6c5690e08_1440w.jpg" title="头像" alt="头像"><img class="post-copyright__author_img_front" src= "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onerror="this.onerror=null,this.src=&quot;/img/404.jpg&quot;" data-lazy-src="https://raw.githubusercontent.com/Grain021125/BlogImag/main/fig/v2-9edb2fdcf08f1149f5d621b6c5690e08_1440w.jpg" title="头像" alt="头像"></a><div class="post-copyright__author_name">GrA1n</div><div class="post-copyright__author_desc"></div></div><div class="post-copyright__post__info"><a class="post-copyright__original" title="该文章为原创文章，注意版权协议" href="https://grain021125.github.io/2026/03/15/TinyCoro%E9%A1%B9%E7%9B%AE-3-tinyCoroLab-1/">原创</a><a class="post-copyright-title"><span onclick="rm.copyPageUrl('https://grain021125.github.io/2026/03/15/TinyCoro%E9%A1%B9%E7%9B%AE-3-tinyCoroLab-1/')">TinyCoro项目(3)-tinyCoroLab 1</span></a></div><div class="post-tools" id="post-tools"><div class="post-tools-left"><div class="rewardLeftButton"></div><div class="shareRight"><div class="share-link mobile"><div class="share-qrcode"><div class="share-button" title="使用手机访问这篇文章"><i class="anzhiyufont anzhiyu-icon-qrcode"></i></div><div class="share-main"><div class="share-main-all"><div id="qrcode" title="https://grain021125.github.io/2026/03/15/TinyCoro%E9%A1%B9%E7%9B%AE-3-tinyCoroLab-1/"></div><div class="reward-dec">使用手机访问这篇文章</div></div></div></div></div><div class="share-link weibo"><a class="share-button" target="_blank" href="https://service.weibo.com/share/share.php?title=TinyCoro项目(3)-tinyCoroLab 1&amp;url=https://grain021125.github.io/2026/03/15/TinyCoro%E9%A1%B9%E7%9B%AE-3-tinyCoroLab-1/&amp;pic=https://raw.githubusercontent.com/Grain021125/BlogImag/main/fig/20260315161317881.png" rel="external nofollow noreferrer noopener"><i class="anzhiyufont anzhiyu-icon-weibo"></i></a></div><script>function copyCurrentPageUrl() {
   var currentPageUrl = window.location.href;
