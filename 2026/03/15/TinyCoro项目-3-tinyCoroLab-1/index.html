@@ -396,17 +396,21 @@ queueMicrotask(() => {
   }
 
   const loadMermaid = () => {
-    window.loadMermaid ? runMermaid() : getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaid)
+    if (window.loadMermaid) {
+      runMermaid()
+    } else {
+      getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(() => {
+        mermaid.initialize({ startOnLoad: false }) // 确保初始化
+        runMermaid()
+      })
+    }
   }
 
   anzhiyu.addGlobalFn('themeChange', runMermaid, 'mermaid')
 
   // 保证首次加载和 PJAX 切换都能执行
-  if (window.pjax) {
-    document.addEventListener('pjax:complete', loadMermaid)
-  } else {
-    document.addEventListener('DOMContentLoaded', loadMermaid)
-  }
+  document.addEventListener('DOMContentLoaded', loadMermaid)
+  document.addEventListener('pjax:complete', loadMermaid)
 })()</script><script>(()=>{
   const getGiscusTheme = theme => {
     return theme === 'dark' ? 'dark' : 'light'

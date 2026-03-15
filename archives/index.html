@@ -60,7 +60,7 @@
   isHome: false,
   isHighlightShrink: false,
   isToc: false,
-  postUpdate: '2026-03-15 21:44:19',
+  postUpdate: '2026-03-15 21:46:53',
   postMainColor: '',
 }</script><noscript><style type="text/css">
   #nav {
@@ -327,17 +327,21 @@ queueMicrotask(() => {
   }
 
   const loadMermaid = () => {
-    window.loadMermaid ? runMermaid() : getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaid)
+    if (window.loadMermaid) {
+      runMermaid()
+    } else {
+      getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(() => {
+        mermaid.initialize({ startOnLoad: false }) // 确保初始化
+        runMermaid()
+      })
+    }
   }
 
   anzhiyu.addGlobalFn('themeChange', runMermaid, 'mermaid')
 
   // 保证首次加载和 PJAX 切换都能执行
-  if (window.pjax) {
-    document.addEventListener('pjax:complete', loadMermaid)
-  } else {
-    document.addEventListener('DOMContentLoaded', loadMermaid)
-  }
+  document.addEventListener('DOMContentLoaded', loadMermaid)
+  document.addEventListener('pjax:complete', loadMermaid)
 })()</script><input type="hidden" name="page-type" id="page-type" value="anzhiyu"></div><script>var visitorMail = "";
 </script><script async data-pjax src="https://cdn.cbd.int/anzhiyu-theme-static@1.0.0/waterfall/waterfall.js"></script><script src="https://cdn.cbd.int/qrcodejs@1.0.0/qrcode.min.js"></script><link rel="stylesheet" href="https://cdn.cbd.int/anzhiyu-theme-static@1.1.9/icon/ali_iconfont_css.css"><link rel="stylesheet" href="https://cdn.cbd.int/anzhiyu-theme-static@1.0.0/aplayer/APlayer.min.css" media="print" onload="this.media='all'"><script src="https://cdn.cbd.int/anzhiyu-blog-static@1.0.1/js/APlayer.min.js"></script><script src="https://cdn.cbd.int/hexo-anzhiyu-music@1.0.1/assets/js/Meting2.min.js"></script><script src="https://cdn.cbd.int/pjax@0.2.8/pjax.min.js"></script><script>let pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
 var pjax = new Pjax({
