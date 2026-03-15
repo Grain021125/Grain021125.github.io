@@ -348,16 +348,9 @@ queueMicrotask(() => {
     })
   }
 
-const loadMermaid = () => {
-  if (window.loadMermaid) {
-    runMermaid()
-  } else {
-    getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(() => {
-      mermaid.initialize({ startOnLoad: false }) // 确保初始化
-      runMermaid()
-    })
+  const loadMermaid = () => {
+    window.loadMermaid ? runMermaid() : getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaid)
   }
-}
 
   anzhiyu.addGlobalFn('themeChange', runMermaid, 'mermaid')
 
