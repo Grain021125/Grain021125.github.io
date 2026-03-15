@@ -60,7 +60,7 @@
   isHome: false,
   isHighlightShrink: false,
   isToc: false,
-  postUpdate: '2026-03-15 21:47:52',
+  postUpdate: '2026-03-15 21:54:34',
   postMainColor: '',
 }</script><noscript><style type="text/css">
   #nav {
@@ -310,41 +310,57 @@ queueMicrotask(() => {
     console.warn.bind(console, "%c S013-782 %c 你现在正处于监控中.", "color:white; background-color:#d9534f", "")
   );
 });</script><script async src="/anzhiyu/random.js"></script><div class="js-pjax"><script>(() => {
-  const $mermaid = document.querySelectorAll('#article-container .mermaid')
-  if ($mermaid.length === 0) return
   const runMermaid = () => {
+    // 1. 扩大选择范围，直接寻找存放源码的容器
+    const $mermaid = document.querySelectorAll('.mermaid-wrap .mermaid-src')
+    if ($mermaid.length === 0) return
+
     window.loadMermaid = true
-    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const theme = isDark ? 'dark' : 'default'
 
-    Array.from($mermaid).forEach((item, index) => {
-      const mermaidSrc = item.firstElementChild
-      const mermaidThemeConfig = '%%{init:{ \'theme\':\'' + theme + '\'}}%%\n'
-      const mermaidID = 'mermaid-' + index
-      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+    $mermaid.forEach((item, index) => {
+      // 2. 检查是否已经渲染过，避免重复渲染
+      if (item.classList.contains('rendered')) return
+      
+      const mermaidDefinition = '%%{init:{ \'theme\':\'' + theme + '\'}}%%\n' + item.textContent
+      const mermaidID = 'mermaid-' + Date.now() + '-' + index // 使用时间戳防止 ID 冲突
 
-      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      try {
+        const renderFn = mermaid.render(mermaidID, mermaidDefinition)
 
-      const renderV10 = () => {
-        renderFn.then(({svg}) => {
-          mermaidSrc.insertAdjacentHTML('afterend', svg)
-        })
+        const renderV10 = () => {
+          renderFn.then(({ svg }) => {
+            item.insertAdjacentHTML('afterend', svg)
+            item.classList.add('rendered') // 标记已渲染
+          }).catch(err => console.error('Mermaid render error:', err))
+        }
+
+        const renderV9 = svg => {
+          item.insertAdjacentHTML('afterend', svg)
+          item.classList.add('rendered')
+        }
+
+        typeof renderFn === 'string' ? renderV9(renderFn) : renderV10()
+      } catch (e) {
+        console.error('Mermaid parsing failed:', e)
       }
-
-      const renderV9 = svg => {
-        mermaidSrc.insertAdjacentHTML('afterend', svg)
-      }
-
-      typeof renderFn === 'string' ? renderV9(renderFn) : renderV10()
     })
   }
 
   const loadMermaid = () => {
-    window.loadMermaid ? runMermaid() : getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaid)
+    if (window.mermaid) {
+      runMermaid()
+    } else {
+      getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaid)
+    }
   }
 
-  anzhiyu.addGlobalFn('themeChange', runMermaid, 'mermaid')
+  // 绑定主题切换和加载事件
+  if (typeof anzhiyu !== 'undefined') {
+    anzhiyu.addGlobalFn('themeChange', runMermaid, 'mermaid')
+  }
 
-  // 保证首次加载和 PJAX 切换都能执行
   document.addEventListener('DOMContentLoaded', loadMermaid)
   document.addEventListener('pjax:complete', loadMermaid)
 })()</script><input type="hidden" name="page-type" id="page-type" value="categories"></div><script>var visitorMail = "";
