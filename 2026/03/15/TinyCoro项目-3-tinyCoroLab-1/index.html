@@ -209,57 +209,61 @@ A--&gt;B
   </pre></div>
 
 <p>协程task结束后的调度逻辑通过promise_type的 <code>final_suspend()</code> 函数实现，如果简单地让 <code>final_suspend()</code> 返回 <code>std::always_suspend</code> ，当子协程任务结束后，执行权会继续沿着调用栈向上转移直到找到非suspend状态的协程，于是会发生下图过程</p>
-<pre class="mermaid">sequenceDiagram
+<div class="mermaid-wrap"><pre class="mermaid-src" hidden>
+  sequenceDiagram
     participant Caller as 协程调用者
     participant Task1 as task1
     participant Task2 as task2
 
-    Caller-->>Task1: 执行协程
-    Task1-->>Task2: co_await task2
-    Task2-->>Task1: initial_suspend(return std::suspend_always) 
-    Task1-->>Task2: await_suspend(return task2.handle())
+    Caller--&gt;&gt;Task1: 执行协程
+    Task1--&gt;&gt;Task2: co_await task2
+    Task2--&gt;&gt;Task1: initial_suspend(return std::suspend_always) 
+    Task1--&gt;&gt;Task2: await_suspend(return task2.handle())
     Note over Task1: 陷入suspend状态
     Note over Task2: return
-    Task2-->>Caller: final_suspend(return std::suspend_always)
-    Note over Task1: return 部分被跳过</pre>
+    Task2--&gt;&gt;Caller: final_suspend(return std::suspend_always)
+    Note over Task1: return 部分被跳过
+  </pre></div>
 
 <p>为了实现正确的嵌套调用逻辑，task应当在被嵌套调用时记录父级task的 handle到状态变量continuation以便任务结束后正确转移执行权到父级task，在co_return后调用final_suspend返回一个自定义awaiter转移执行权到continuation，正确实现逻辑如下</p>
-<pre class="mermaid">sequenceDiagram
+<div class="mermaid-wrap"><pre class="mermaid-src" hidden>
+  sequenceDiagram
     participant T1 as Task1 (Coroutine)
     participant A as Awaiter (co_await)
     participant B as Awaiter (co_return)
     participant T2 as Task2 (Coroutine)
-    participant S as Runtime/Executor
+    participant S as Runtime&#x2F;Executor
 
     Note over T1: 正在执行业务逻辑...
-    T1->>A: 1. 执行 co_await Task2()
+    T1-&gt;&gt;A: 1. 执行 co_await Task2()
     
     Note over A: Awaiter 协议开始
-    A->>A: 2. 调用 await_ready()
+    A-&gt;&gt;A: 2. 调用 await_ready()
     Note right of A: 返回 false (表示未就绪)
     
-    T1->>T1: 3. Task1 暂停并保存状态 (挂起)
+    T1-&gt;&gt;T1: 3. Task1 暂停并保存状态 (挂起)
     
-    A->>A: 4. 调用 await_suspend(T1_handle)
+    A-&gt;&gt;A: 4. 调用 await_suspend(T1_handle)
     Note right of A: 将 T1 句柄存入 Task2 的 Promise
-    A-->>T2: 5. 返回 Task2_handle (切换执行权)
+    A--&gt;&gt;T2: 5. 返回 Task2_handle (切换执行权)
 
     Note over T2: Task2 开始运行...
-    T2->>B: 6. 执行 co_return
+    T2-&gt;&gt;B: 6. 执行 co_return
     
-    B->>B: 7. 调用await_ready()
+    B-&gt;&gt;B: 7. 调用await_ready()
     Note right of B: 返回 false (表示未就绪)
-    B->>B: 8. 调用await_suspend(continuation)
+    B-&gt;&gt;B: 8. 调用await_suspend(continuation)
     Note right of B: 转移执行权到continuation
-    T2->>T1: 9. 从 Promise 找到 T1_handle 并 Resume
+    T2-&gt;&gt;T1: 9. 从 Promise 找到 T1_handle 并 Resume
     
     
     Note over T1: Task1 唤醒
     
-    T1->>A: 10. 调用 await_resume()
+    T1-&gt;&gt;A: 10. 调用 await_resume()
     Note over A: 生命周期结束
-    A-->>T1: 返回数据/结果
-    Note over T1: 继续执行后续代码</pre>
+    A--&gt;&gt;T1: 返回数据&#x2F;结果
+    Note over T1: 继续执行后续代码
+  </pre></div>
 <p><code>promise_base</code>保存着协程的状态信息，为其新增成员变量以及修改该成员变量的方法</p>
 <figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">promise_type</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="function"><span class="keyword">inline</span> <span class="keyword">auto</span> <span class="title">continuation</span><span class="params">(std::coroutine_handle&lt;&gt; continuation)</span> <span class="keyword">noexcept</span> -&gt; <span class="type">void</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        m_continuation = continuation;</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">protected</span>:</span><br><span class="line">    std::coroutine_handle&lt;&gt; m_continuation&#123;<span class="literal">nullptr</span>&#125;; </span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 <p>在task的awaiter里修改 <code>awaiter_suspend()</code>逻辑保存task1协程句柄到task2的promise变量里</p>
