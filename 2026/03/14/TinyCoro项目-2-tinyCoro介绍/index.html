@@ -373,7 +373,7 @@ queueMicrotask(() => {
   loadMermaid()
 
   // 2. PJAX 切换完成后执行
-  document.addEventListener('pjax:complete', loadMermaid)
+  document.addEventListener('pjax:success', loadMermaid)
 
   // 3. 主题切换时重新渲染
   if (typeof anzhiyu !== 'undefined') {
