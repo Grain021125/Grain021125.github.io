@@ -18,7 +18,7 @@
   localSearch: undefined,
   translate: {"defaultEncoding":2,"translateDelay":0,"msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"简","rightMenuMsgToTraditionalChinese":"转为繁体","rightMenuMsgToSimplifiedChinese":"转为简体"},
   noticeOutdate: undefined,
-  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":330},
+  highlight: undefined,
   copy: {
     success: '复制成功',
     error: '复制错误',
@@ -60,7 +60,7 @@
   isHome: true,
   isHighlightShrink: false,
   isToc: false,
-  postUpdate: '2026-03-15 20:57:53',
+  postUpdate: '2026-03-15 20:58:32',
   postMainColor: '',
 }</script><noscript><style type="text/css">
   #nav {
@@ -233,17 +233,20 @@ valgrind version &gt;&#x3D; 3.18.1
 
 环境搭建我在wsl2 Ubuntu 24.04环境下配置环境，首先克隆实验仓库到本地
 git clone https://github.com/sakurs2/tinyCoroLab.git
+
 初始化所有子模块
-cd tinyCoroLabgit submodule update --init --recursive
+cd tinyCoroLab
+git submodule update --init --recursive
+
 如果已经跟着io_uring一节安装了liburing就可以直接构建tinyCoroLab了，否则需要安装liburing
-cd third_party/lib ...</div></div></div><div class="recent-post-item" onclick="pjax.loadUrl('/2026/03/14/TinyCoro%E9%A1%B9%E7%9B%AE-1-io-uring%E5%BC%82%E6%AD%A5IO/')"><div class="recent-post-info no-cover"><div class="recent-post-info-top"><div class="recent-post-info-top-tips"><div class="article-categories-original">项目</div><div class="article-categories-original">tinyCoro</div><a class="unvisited-post" href="/2026/03/14/TinyCoro%E9%A1%B9%E7%9B%AE-1-io-uring%E5%BC%82%E6%AD%A5IO/" title="TinyCoro项目(1)--io_uring异步IO">未读</a></div><a class="article-title" href="/2026/03/14/TinyCoro%E9%A1%B9%E7%9B%AE-1-io-uring%E5%BC%82%E6%AD%A5IO/" title="TinyCoro项目(1)--io_uring异步IO">TinyCoro项目(1)--io_uring异步IO</a></div><div class="article-meta-wrap"><span class="post-meta-date"><i class="anzhiyufont anzhiyu-icon-calendar-days" style="font-size: 15px; display:none"></i><span class="article-meta-label">发表于</span><time datetime="2026-03-14T08:12:19.000Z" title="发表于 2026-03-14 16:12:19" time="2026-03-14 16:12:19">2026-03-14</time><time class="time_hidden" datetime="2026-03-15T08:15:19.090Z" title="更新于 2026-03-15 16:15:19" time="2026-03-15 16:15:19">2026-03-15</time></span></div><div class="content">io_uring初识简介io_uring是Linux下的异步I&#x2F;O接口，其基本逻辑类似于 aio ,同样为用户提供提交I&#x2F;O的接口和接收完成事件的接口，但其内核设计不同：
+cd third_party/ ...</div></div></div><div class="recent-post-item" onclick="pjax.loadUrl('/2026/03/14/TinyCoro%E9%A1%B9%E7%9B%AE-1-io-uring%E5%BC%82%E6%AD%A5IO/')"><div class="recent-post-info no-cover"><div class="recent-post-info-top"><div class="recent-post-info-top-tips"><div class="article-categories-original">项目</div><div class="article-categories-original">tinyCoro</div><a class="unvisited-post" href="/2026/03/14/TinyCoro%E9%A1%B9%E7%9B%AE-1-io-uring%E5%BC%82%E6%AD%A5IO/" title="TinyCoro项目(1)--io_uring异步IO">未读</a></div><a class="article-title" href="/2026/03/14/TinyCoro%E9%A1%B9%E7%9B%AE-1-io-uring%E5%BC%82%E6%AD%A5IO/" title="TinyCoro项目(1)--io_uring异步IO">TinyCoro项目(1)--io_uring异步IO</a></div><div class="article-meta-wrap"><span class="post-meta-date"><i class="anzhiyufont anzhiyu-icon-calendar-days" style="font-size: 15px; display:none"></i><span class="article-meta-label">发表于</span><time datetime="2026-03-14T08:12:19.000Z" title="发表于 2026-03-14 16:12:19" time="2026-03-14 16:12:19">2026-03-14</time><time class="time_hidden" datetime="2026-03-15T08:15:19.090Z" title="更新于 2026-03-15 16:15:19" time="2026-03-15 16:15:19">2026-03-15</time></span></div><div class="content">io_uring初识简介io_uring是Linux下的异步I&#x2F;O接口，其基本逻辑类似于 aio ,同样为用户提供提交I&#x2F;O的接口和接收完成事件的接口，但其内核设计不同：
 
 io_uring是真正异步的，调用其接口仅仅需要和内核数据结构做一次交互，绝对不会发生阻塞。
 io_uring的接口设计非常灵活，支持多种I&#x2F;O操作，甚至可以提交用户自定义的操作。
 io_uring交互逻辑简单，用户仅需要提交I&#x2F;O请求，完成后的I&#x2F;O事件会自动出现在完成队列里。
 
 实现原理io_uring的异步I&#x2F;O实现本质是一个生产者-消费者模型，每个uring在初始化时在内核中创建提交队列(sq)和完成队列(cq)，其数据结构为固定长度的环形缓冲区。用户向sq提交I&#x2F;O任务，内核负责消费任务，完成后的任务会被放入cq由用户取出。用户空间通过内存映射(mmap)的方式访问这两个队列，与内核共享sq 和 cq的内存空间，降低了数据拷贝开销、系统调用的次数和上下文切换开销。核心数据存储在sqe array中，每个sqe entry是一个存储了I& ...</div></div></div><div class="recent-post-item" onclick="pjax.loadUrl('/2026/03/13/hello-world/')"><div class="recent-post-info no-cover"><div class="recent-post-info-top"><div class="recent-post-info-top-tips"><a class="unvisited-post" href="/2026/03/13/hello-world/" title="Hello World">未读</a></div><a class="article-title" href="/2026/03/13/hello-world/" title="Hello World">Hello World</a></div><div class="article-meta-wrap"><span class="post-meta-date"><i class="anzhiyufont anzhiyu-icon-calendar-days" style="font-size: 15px; display:none"></i><span class="article-meta-label">发表于</span><time datetime="2026-03-13T07:47:28.379Z" title="发表于 2026-03-13 15:47:28" time="2026-03-13 15:47:28">2026-03-13</time><time class="time_hidden" datetime="2026-03-13T07:47:28.379Z" title="更新于 2026-03-13 15:47:28" time="2026-03-13 15:47:28">2026-03-13</time></span></div><div class="content">Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
-Quick StartCreate a new post$ hexo new &quot;My New Post&quot;
+Quick StartCreate a new post$ hexo new "My New Post"
 
 More info: Writing
 Run server$ hexo server
