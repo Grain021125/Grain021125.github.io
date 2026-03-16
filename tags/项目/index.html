@@ -60,7 +60,7 @@
   isHome: false,
   isHighlightShrink: false,
   isToc: false,
-  postUpdate: '2026-03-16 15:24:48',
+  postUpdate: '2026-03-16 15:27:14',
   postMainColor: '',
 }</script><noscript><style type="text/css">
   #nav {
@@ -308,19 +308,16 @@ queueMicrotask(() => {
     console.warn.bind(console, "%c S013-782 %c 你现在正处于监控中.", "color:white; background-color:#d9534f", "")
   );
 });</script><script async src="/anzhiyu/random.js"></script><div class="js-pjax"><script>(() => {
-  const runMermaid = () => {
-    // 1. 准确定位：直接寻找存放源码的 pre 标签
+  // 增加一个参数 isThemeChange，用于区分是正常渲染还是切换深浅色
+  const runMermaid = (isThemeChange = false) => {
     const $mermaid = document.querySelectorAll('.mermaid-src')
     if ($mermaid.length === 0) return
 
-    // 确保 mermaid 库已加载
     if (typeof mermaid === 'undefined') return
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
-    // 这里的 theme 变量会由 Hexo 注入，如果直接报错请改为手动指定字符串如 'dark' : 'default'
     const theme = isDark ? 'dark' : 'default'
 
-    // 初始化配置
     mermaid.initialize({
       startOnLoad: false,
       theme: isDark ? 'dark' : 'default',
@@ -328,17 +325,30 @@ queueMicrotask(() => {
     })
 
     $mermaid.forEach((item, index) => {
-      // 避免重复渲染：如果父容器已经有了 svg，说明渲染过了
-      if (item.parentNode.querySelector('svg')) return
+      const parent = item.parentNode;
+      const existingSvg = parent.querySelector('svg');
 
-      const mermaidDefinition = item.textContent
-      // 生成唯一 ID
+      // 1. 如果是主题切换，必须先删掉旧的 SVG 才能重绘
+      if (isThemeChange && existingSvg) {
+        existingSvg.remove();
+        item.dataset.rendered = 'false'; // 重置锁
+      }
+
+      // 2. 【核心同步锁】：利用 HTML5 dataset。如果已经打上标记，瞬间拦截，防止异步重影
+      if (item.dataset.rendered === 'true') return;
+      item.dataset.rendered = 'true'; // 立即上锁
+
+      const mermaidDefinition = item.textContent.trim()
+      if (!mermaidDefinition) return
+
       const mermaidID = `mermaid-${Math.random().toString(36).substring(2, 10)}-${index}`
 
-      // 执行渲染
       mermaid.render(mermaidID, mermaidDefinition).then(({ svg }) => {
+        // 渲染成功后插入
         item.insertAdjacentHTML('afterend', svg)
       }).catch(err => {
+        // 渲染失败时解锁，允许刷新后重试
+        item.dataset.rendered = 'false'; 
         console.error('Mermaid 渲染失败:', err)
       })
     })
@@ -348,21 +358,27 @@ queueMicrotask(() => {
     if (window.mermaid) {
       runMermaid()
     } else {
-      // 这里的地址请确保能正确指向你的 mermaid.min.js
-      getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaid)
+      getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(() => runMermaid())
     }
   }
 
-  // PJAX 适配逻辑
-  // 1. 首次加载执行
-  loadMermaid()
+  // 【PJAX 防堆积修复】：确保事件监听器在整个浏览历史中只被挂载一次
+  if (!window.mermaidPluginInitialized) {
+    window.mermaidPluginInitialized = true; // 设置全局单例标记
+    
+    // 1. 首次加载执行
+    loadMermaid()
 
-  // 2. PJAX 切换完成后执行
-  document.addEventListener('pjax:complete', loadMermaid)
+    // 2. 挂载 PJAX 事件
+    document.addEventListener('pjax:complete', loadMermaid)
 
-  // 3. 主题切换时重新渲染
-  if (typeof anzhiyu !== 'undefined') {
-    anzhiyu.addGlobalFn('themeChange', runMermaid, 'mermaid')
+    // 3. 挂载主题切换事件（传入 true 触发强制清理）
+    if (typeof anzhiyu !== 'undefined') {
+      anzhiyu.addGlobalFn('themeChange', () => runMermaid(true), 'mermaid')
+    }
+  } else {
+    // 如果 PJAX 导致这段代码被重复 eval，直接调用单次渲染，不再重复注册事件监听
+    loadMermaid()
   }
 })()</script><input type="hidden" name="page-type" id="page-type" value="anzhiyu"></div><script>var visitorMail = "";
 </script><script async data-pjax src="https://cdn.cbd.int/anzhiyu-theme-static@1.0.0/waterfall/waterfall.js"></script><script src="https://cdn.cbd.int/qrcodejs@1.0.0/qrcode.min.js"></script><link rel="stylesheet" href="https://cdn.cbd.int/anzhiyu-theme-static@1.1.9/icon/ali_iconfont_css.css"><link rel="stylesheet" href="https://cdn.cbd.int/anzhiyu-theme-static@1.0.0/aplayer/APlayer.min.css" media="print" onload="this.media='all'"><script src="https://cdn.cbd.int/anzhiyu-blog-static@1.0.1/js/APlayer.min.js"></script><script src="https://cdn.cbd.int/hexo-anzhiyu-music@1.0.1/assets/js/Meting2.min.js"></script><script src="https://cdn.cbd.int/pjax@0.2.8/pjax.min.js"></script><script>let pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
