@@ -323,6 +323,7 @@ queueMicrotask(() => {
     console.warn.bind(console, "%c S013-782 %c 你现在正处于监控中.", "color:white; background-color:#d9534f", "")
   );
 });</script><script async src="/anzhiyu/random.js"></script><div class="js-pjax"><script>(() => {
+  // 增加一个参数 isThemeChange，用于区分是正常渲染还是切换深浅色
   const runMermaid = (isThemeChange = false) => {
     const $mermaid = document.querySelectorAll('.mermaid-src')
     if ($mermaid.length === 0) return
@@ -330,29 +331,27 @@ queueMicrotask(() => {
     if (typeof mermaid === 'undefined') return
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
-    
-    // 修复2：正确处理主题变量 fallback，避免变量未使用
-    const configTheme = isDark ? 'dark' : 'default'
-    const finalTheme = configTheme || (isDark ? 'dark' : 'default')
+    const theme = isDark ? 'dark' : 'default'
 
     mermaid.initialize({
       startOnLoad: false,
-      theme: finalTheme,
+      theme: isDark ? 'dark' : 'default',
       securityLevel: 'loose'
     })
 
     $mermaid.forEach((item, index) => {
-      // 修复1：精准定位由 Mermaid 生成并插入到 item 后面的 SVG，避免误伤其他组件的 SVG
-      const nextSibling = item.nextElementSibling;
-      const existingSvg = (nextSibling && nextSibling.tagName.toLowerCase() === 'svg') ? nextSibling : null;
+      const parent = item.parentNode;
+      const existingSvg = parent.querySelector('svg');
 
+      // 1. 如果是主题切换，必须先删掉旧的 SVG 才能重绘
       if (isThemeChange && existingSvg) {
-        existingSvg.remove();
+        //- existingSvg.remove();
         item.dataset.rendered = 'false'; // 重置锁
       }
 
+      // 2. 【核心同步锁】：利用 HTML5 dataset。如果已经打上标记，瞬间拦截，防止异步重影
       if (item.dataset.rendered === 'true') return;
-      item.dataset.rendered = 'true'; 
+      item.dataset.rendered = 'true'; // 立即上锁
 
       const mermaidDefinition = item.textContent.trim()
       if (!mermaidDefinition) return
@@ -360,8 +359,10 @@ queueMicrotask(() => {
       const mermaidID = `mermaid-${Math.random().toString(36).substring(2, 10)}-${index}`
 
       mermaid.render(mermaidID, mermaidDefinition).then(({ svg }) => {
+        // 渲染成功后插入
         item.insertAdjacentHTML('afterend', svg)
       }).catch(err => {
+        // 渲染失败时解锁，允许刷新后重试
         item.dataset.rendered = 'false'; 
         console.error('Mermaid 渲染失败:', err)
       })
@@ -376,18 +377,23 @@ queueMicrotask(() => {
     }
   }
 
-  // 修复3：将事件挂载的逻辑优化，防止 PJAX 造成的闭包死锁
+  // 【PJAX 防堆积修复】：确保事件监听器在整个浏览历史中只被挂载一次
   if (!window.mermaidPluginInitialized) {
-    window.mermaidPluginInitialized = true; 
-    document.addEventListener('pjax:complete', loadMermaid)
-  }
-  
-  // 无论是否是首次加载，都执行渲染
-  loadMermaid()
+    window.mermaidPluginInitialized = true; // 设置全局单例标记
+    
+    // 1. 首次加载执行
+    loadMermaid()
 
-  // 每次 PJAX 重新执行时，覆盖注册最新的主题切换函数
-  if (typeof anzhiyu !== 'undefined') {
-    anzhiyu.addGlobalFn('themeChange', () => runMermaid(true), 'mermaid')
+    // 2. 挂载 PJAX 事件
+    document.addEventListener('pjax:complete', loadMermaid)
+
+    // 3. 挂载主题切换事件（传入 true 触发强制清理）
+    if (typeof anzhiyu !== 'undefined') {
+      anzhiyu.addGlobalFn('themeChange', () => runMermaid(true), 'mermaid')
+    }
+  } else {
+    // 如果 PJAX 导致这段代码被重复 eval，直接调用单次渲染，不再重复注册事件监听
+    loadMermaid()
   }
 })()</script><script>(()=>{
   const getGiscusTheme = theme => {
