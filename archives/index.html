@@ -60,7 +60,7 @@
   isHome: false,
   isHighlightShrink: false,
   isToc: false,
-  postUpdate: '2026-03-18 16:47:15',
+  postUpdate: '2026-03-18 16:53:14',
   postMainColor: '',
 }</script><noscript><style type="text/css">
   #nav {
@@ -298,87 +298,79 @@ queueMicrotask(() => {
     console.warn.bind(console, "%c S013-782 %c 你现在正处于监控中.", "color:white; background-color:#d9534f", "")
   );
 });</script><script async src="/anzhiyu/random.js"></script><div class="js-pjax"><script>(() => {
-  const runMermaid = () => {
-    // 1. 查找所有 Mermaid 源码容器
-    const $mermaid = document.querySelectorAll('.mermaid-src');
-    if ($mermaid.length === 0) return;
+  // 增加一个参数 isThemeChange，用于区分是正常渲染还是切换深浅色
+  const runMermaid = (isThemeChange = false) => {
+    const $mermaid = document.querySelectorAll('.mermaid-src')
+    if ($mermaid.length === 0) return
 
-    // 确保 mermaid 库已加载
-    if (typeof mermaid === 'undefined') {
-      console.warn('Mermaid library not found.');
-      return;
-    }
+    if (typeof mermaid === 'undefined') return
 
-    // 2. 获取当前主题
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    
-    // 3. 重新初始化配置
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const theme = isDark ? 'dark' : 'default'
+
     mermaid.initialize({
-      theme: isDark ? 'dark' : 'default',
       startOnLoad: false,
-      securityLevel: 'loose',
-      // 增加尝试次数，防止在某些浏览器下初次加载失败
-      suppressErrorRendering: false 
-    });
+      theme: isDark ? 'dark' : 'default',
+      securityLevel: 'loose'
+    })
 
     $mermaid.forEach((item, index) => {
-      // --- 核心修复：确保源码容器是可见的，否则渲染后也看不见 ---
-      item.style.display = 'none'; // 先隐藏源码
-      
-      // 移除旧的渲染结果（SVG）
-      const nextSibling = item.nextElementSibling;
-      if (nextSibling && nextSibling.classList.contains('mermaid-svg')) {
-        nextSibling.remove();
+      const parent = item.parentNode;
+      const existingSvg = parent.querySelector('svg');
+
+      // 1. 如果是主题切换，必须先删掉旧的 SVG 才能重绘
+      if (isThemeChange && existingSvg) {
+        existingSvg.remove();
+        item.dataset.rendered = 'false'; // 重置锁
       }
 
-      const sourceCode = item.textContent.trim();
-      if (!sourceCode) return;
+      // 2. 【核心同步锁】：利用 HTML5 dataset。如果已经打上标记，瞬间拦截，防止异步重影
+      if (item.dataset.rendered === 'true') return;
+      item.dataset.rendered = 'true'; // 立即上锁
 
-      // 生成唯一且合法的 ID (不包含非法字符)
-      const id = `mermaid-svg-${Math.random().toString(36).substring(2, 9)}`;
-      
-      // 4. 执行异步渲染
-      mermaid.render(id, sourceCode).then(({ svg }) => {
-        // 创建一个包装容器，并添加特定类名方便管理
-        const wrapper = document.createElement('div');
-        wrapper.className = 'mermaid-svg';
-        wrapper.style.textAlign = 'center';
-        wrapper.style.width = '100%';
-        wrapper.innerHTML = svg;
-        
-        item.insertAdjacentElement('afterend', wrapper);
+      const mermaidDefinition = item.textContent.trim()
+      if (!mermaidDefinition) return
+
+      const mermaidID = `mermaid-${Math.random().toString(36).substring(2, 10)}-${index}`
+
+      mermaid.render(mermaidID, mermaidDefinition).then(({ svg }) => {
+        // 渲染成功后插入
+        item.insertAdjacentHTML('afterend', svg)
       }).catch(err => {
-        console.error('[Mermaid] Render error:', err);
-        // 如果渲染失败，把源码展示出来，防止页面空白
-        item.style.display = 'block';
-        item.style.whiteSpace = 'pre';
-        item.style.background = '#f8f8f8';
-      });
-    });
-  };
-
-  // 生命周期挂载
-  if (window.pjax) {
-    document.addEventListener('pjax:complete', runMermaid);
+        // 渲染失败时解锁，允许刷新后重试
+        item.dataset.rendered = 'false'; 
+        console.error('Mermaid 渲染失败:', err)
+      })
+    })
   }
-  document.addEventListener('DOMContentLoaded', runMermaid);
-  // 适配全局切换
-  window.addEventListener('themeChange', runMermaid);
 
-  // 额外的保险：如果 Pjax 没触发 themeChange，MutationObserver 作为兜底
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (mutation.attributeName === 'data-theme') {
-        runMermaid();
-        break;
-      }
+  const loadMermaid = () => {
+    if (window.mermaid) {
+      runMermaid()
+    } else {
+      getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(() => runMermaid())
     }
-  });
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-  
-  // 首次运行
-  runMermaid();
-})();</script><input type="hidden" name="page-type" id="page-type" value="anzhiyu"></div><script>var visitorMail = "";
+  }
+
+  // 【PJAX 防堆积修复】：确保事件监听器在整个浏览历史中只被挂载一次
+  if (!window.mermaidPluginInitialized) {
+    window.mermaidPluginInitialized = false; // 设置全局单例标记
+    
+    // 1. 首次加载执行
+    loadMermaid()
+
+    // 2. 挂载 PJAX 事件
+    document.addEventListener('pjax:complete', loadMermaid)
+
+    // 3. 挂载主题切换事件（传入 true 触发强制清理）
+    if (typeof anzhiyu !== 'undefined') {
+      anzhiyu.addGlobalFn('themeChange', () => runMermaid(true), 'mermaid')
+    }
+  } else {
+    // 如果 PJAX 导致这段代码被重复 eval，直接调用单次渲染，不再重复注册事件监听
+    loadMermaid()
+  }
+})()</script><input type="hidden" name="page-type" id="page-type" value="anzhiyu"></div><script>var visitorMail = "";
 </script><script async data-pjax src="https://cdn.cbd.int/anzhiyu-theme-static@1.0.0/waterfall/waterfall.js"></script><script src="https://cdn.cbd.int/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/js/anzhiyu/right_click_menu.js"></script><link rel="stylesheet" href="https://cdn.cbd.int/anzhiyu-theme-static@1.1.9/icon/ali_iconfont_css.css"><link rel="stylesheet" href="https://cdn.cbd.int/anzhiyu-theme-static@1.0.0/aplayer/APlayer.min.css" media="print" onload="this.media='all'"><script src="https://cdn.cbd.int/anzhiyu-blog-static@1.0.1/js/APlayer.min.js"></script><script src="https://cdn.cbd.int/hexo-anzhiyu-music@1.0.1/assets/js/Meting2.min.js"></script><script src="https://cdn.cbd.int/pjax@0.2.8/pjax.min.js"></script><script>let pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
 var pjax = new Pjax({
   elements: 'a:not([target="_blank"])',
