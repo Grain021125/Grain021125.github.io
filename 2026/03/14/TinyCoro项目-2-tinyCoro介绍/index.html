@@ -343,15 +343,15 @@ queueMicrotask(() => {
       const parent = item.parentNode;
       const existingSvg = parent.querySelector('svg');
 
-      // 1. 如果是主题切换，必须先删掉旧的 SVG 才能重绘
-      if (isThemeChange && existingSvg) {
-        existingSvg.remove();
-        item.dataset.rendered = 'false'; // 重置锁
-      }
+      //- // 1. 如果是主题切换，必须先删掉旧的 SVG 才能重绘
+      //- if (isThemeChange && existingSvg) {
+      //-   existingSvg.remove();
+      //-   item.dataset.rendered = 'false'; // 重置锁
+      //- }
 
-      // 2. 【核心同步锁】：利用 HTML5 dataset。如果已经打上标记，瞬间拦截，防止异步重影
-      if (item.dataset.rendered === 'true') return;
-      item.dataset.rendered = 'true'; // 立即上锁
+      //- // 2. 【核心同步锁】：利用 HTML5 dataset。如果已经打上标记，瞬间拦截，防止异步重影
+      //- if (item.dataset.rendered === 'true') return;
+      //- item.dataset.rendered = 'true'; // 立即上锁
 
       const mermaidDefinition = item.textContent.trim()
       if (!mermaidDefinition) return
@@ -379,7 +379,7 @@ queueMicrotask(() => {
 
   // 【PJAX 防堆积修复】：确保事件监听器在整个浏览历史中只被挂载一次
   if (!window.mermaidPluginInitialized) {
-    window.mermaidPluginInitialized = false; // 设置全局单例标记
+    window.mermaidPluginInitialized = true; // 设置全局单例标记
     
     // 1. 首次加载执行
     loadMermaid()
