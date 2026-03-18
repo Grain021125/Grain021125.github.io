@@ -342,8 +342,8 @@ queueMicrotask(() => {
 
       // 1. 如果是主题切换，必须先删掉旧的 SVG 才能重绘
       if (isThemeChange && existingSvg) {
-        //- existingSvg.remove();
-        item.dataset.rendered = 'false'; // 重置锁
+        existingSvg.remove();
+        //- item.dataset.rendered = 'false'; // 重置锁
       }
 
       // 2. 【核心同步锁】：利用 HTML5 dataset。如果已经打上标记，瞬间拦截，防止异步重影
