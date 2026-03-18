@@ -308,41 +308,65 @@ queueMicrotask(() => {
     console.warn.bind(console, "%c S013-782 %c 你现在正处于监控中.", "color:white; background-color:#d9534f", "")
   );
 });</script><script async src="/anzhiyu/random.js"></script><div class="js-pjax"><script>(() => {
-  const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
-  if ($mermaid.length === 0) return
+  // 防止重复初始化
+  if (window.mermaidInitialized) return;
+  window.mermaidInitialized = true;
+
   const runMermaid = () => {
-    window.loadMermaid = true
-    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+    
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const theme = isDark ? 'dark' : 'default'
 
     Array.from($mermaid).forEach((item, index) => {
-      const mermaidSrc = item.firstElementChild
-      const mermaidThemeConfig = '%%{init:{ \'theme\':\'' + theme + '\'}}%%\n'
-      const mermaidID = 'mermaid-' + index
-      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+      const mermaidSrc = item.querySelector('.mermaid-src')
+      if (!mermaidSrc) return
+      
+      // 关键：渲染前先清理旧的 SVG，避免 DOM 堆积影响性能
+      const oldSvg = item.querySelector('svg')
+      if (oldSvg) oldSvg.remove()
 
-      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+      const mermaidID = `mermaid-${Math.random().toString(36).substring(2, 8)}`
+      const mermaidDefinition = `%%{init:{ 'theme':'${theme}'}}%%\n${mermaidSrc.textContent}`
 
-      const renderV10 = () => {
-        renderFn.then(({svg}) => {
-          mermaidSrc.insertAdjacentHTML('afterend', svg)
-        })
+      // 使用 try-catch 确保 Mermaid 报错不会卡死整个主题的切换逻辑
+      try {
+        const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+        if (typeof renderFn === 'string') {
+          mermaidSrc.insertAdjacentHTML('afterend', renderFn)
+        } else {
+          renderFn.then(({svg}) => {
+            mermaidSrc.insertAdjacentHTML('afterend', svg)
+          }).catch(e => console.error(e))
+        }
+      } catch (e) {
+        console.error('Mermaid render error:', e)
       }
-
-      const renderV9 = svg => {
-        mermaidSrc.insertAdjacentHTML('afterend', svg)
-      }
-
-      typeof renderFn === 'string' ? renderV9(renderFn) : renderV10()
     })
   }
 
   const loadMermaid = () => {
-    window.loadMermaid ? runMermaid() : getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaid)
+    if (window.mermaid) {
+      runMermaid()
+    } else {
+      getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(() => {
+        mermaid.initialize({ startOnLoad: false })
+        runMermaid()
+      })
+    }
   }
 
-  anzhiyu.addGlobalFn('themeChange', runMermaid, 'mermaid')
+  // 注册到全局主题切换钩子
+  // 确保这个函数是异步的或者放在 setTimeout 里，不阻塞名片等组件更新
+  anzhiyu.addGlobalFn('themeChange', () => {
+    setTimeout(runMermaid, 0)
+  }, 'mermaid')
 
+  // Pjax 和 初次加载处理
   window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+  // 针对 AnZhiYu 的 Pjax 完成事件重新触发
+  document.addEventListener('pjax:complete', loadMermaid)
 })()</script><script>(()=>{
   const getGiscusTheme = theme => {
     return theme === 'dark' ? 'dark' : 'light'
