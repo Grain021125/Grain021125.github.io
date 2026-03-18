@@ -60,7 +60,7 @@
   isHome: false,
   isHighlightShrink: false,
   isToc: false,
-  postUpdate: '2026-03-18 16:45:22',
+  postUpdate: '2026-03-18 16:47:15',
   postMainColor: '',
 }</script><noscript><style type="text/css">
   #nav {
@@ -311,69 +311,85 @@ queueMicrotask(() => {
   );
 });</script><script async src="/anzhiyu/random.js"></script><div class="js-pjax"><script>(() => {
   const runMermaid = () => {
-    // 1. 获取所有包含 Mermaid 源码的容器
+    // 1. 查找所有 Mermaid 源码容器
     const $mermaid = document.querySelectorAll('.mermaid-src');
-    if ($mermaid.length === 0 || typeof mermaid === 'undefined') return;
+    if ($mermaid.length === 0) return;
 
-    // 2. 获取当前全局主题状态
+    // 确保 mermaid 库已加载
+    if (typeof mermaid === 'undefined') {
+      console.warn('Mermaid library not found.');
+      return;
+    }
+
+    // 2. 获取当前主题
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     
-    // 3. 初始化 Mermaid 参数
+    // 3. 重新初始化配置
     mermaid.initialize({
       theme: isDark ? 'dark' : 'default',
       startOnLoad: false,
-      securityLevel: 'loose'
+      securityLevel: 'loose',
+      // 增加尝试次数，防止在某些浏览器下初次加载失败
+      suppressErrorRendering: false 
     });
 
-    // 4. 遍历并重新渲染
     $mermaid.forEach((item, index) => {
-      // 安全清理：移除 Pjax 残留或主题切换前遗留的旧 SVG 节点
+      // --- 核心修复：确保源码容器是可见的，否则渲染后也看不见 ---
+      item.style.display = 'none'; // 先隐藏源码
+      
+      // 移除旧的渲染结果（SVG）
       const nextSibling = item.nextElementSibling;
-      if (nextSibling && nextSibling.tagName.toLowerCase() === 'svg') {
+      if (nextSibling && nextSibling.classList.contains('mermaid-svg')) {
         nextSibling.remove();
       }
 
       const sourceCode = item.textContent.trim();
       if (!sourceCode) return;
 
-      // 生成唯一 ID 防止渲染冲突
-      const id = `mermaid-svg-${Date.now()}-${index}`;
+      // 生成唯一且合法的 ID (不包含非法字符)
+      const id = `mermaid-svg-${Math.random().toString(36).substring(2, 9)}`;
       
-      // 执行渲染并将其插入到源码容器之后
+      // 4. 执行异步渲染
       mermaid.render(id, sourceCode).then(({ svg }) => {
-        item.insertAdjacentHTML('afterend', svg);
-      }).catch(e => {
-        console.error('[Mermaid] Render failed:', e);
+        // 创建一个包装容器，并添加特定类名方便管理
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mermaid-svg';
+        wrapper.style.textAlign = 'center';
+        wrapper.style.width = '100%';
+        wrapper.innerHTML = svg;
+        
+        item.insertAdjacentElement('afterend', wrapper);
+      }).catch(err => {
+        console.error('[Mermaid] Render error:', err);
+        // 如果渲染失败，把源码展示出来，防止页面空白
+        item.style.display = 'block';
+        item.style.whiteSpace = 'pre';
+        item.style.background = '#f8f8f8';
       });
     });
   };
 
-  // ---------------- 生命周期挂载 ----------------
+  // 生命周期挂载
+  if (window.pjax) {
+    document.addEventListener('pjax:complete', runMermaid);
+  }
+  document.addEventListener('DOMContentLoaded', runMermaid);
+  // 适配全局切换
+  window.addEventListener('themeChange', runMermaid);
 
-  // 1. 首次页面加载渲染
-  // 延迟到主资源加载完成，确保 mermaid.js 已经 ready
-  window.addEventListener('load', runMermaid);
-
-  // 2. Pjax 页面跳转完成后的重绘
-  // 解决从主页跳转到文章页后，图表不显示的问题
-  document.addEventListener('pjax:complete', runMermaid);
-
-  // 3. 主题切换（黑夜/白天）的无感重绘
-  // 监听 html 标签的 data-theme 属性，一旦主题改变，立刻重绘 Mermaid
-  // 这种做法完全与主题自带的按钮点击逻辑解耦，不会影响别的组件
-  const themeObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
+  // 额外的保险：如果 Pjax 没触发 themeChange，MutationObserver 作为兜底
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
       if (mutation.attributeName === 'data-theme') {
         runMermaid();
+        break;
       }
-    });
+    }
   });
-
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-theme']
-  });
-
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  
+  // 首次运行
+  runMermaid();
 })();</script><input type="hidden" name="page-type" id="page-type" value="categories"></div><script>var visitorMail = "";
 </script><script async data-pjax src="https://cdn.cbd.int/anzhiyu-theme-static@1.0.0/waterfall/waterfall.js"></script><script src="https://cdn.cbd.int/qrcodejs@1.0.0/qrcode.min.js"></script><script src="/js/anzhiyu/right_click_menu.js"></script><link rel="stylesheet" href="https://cdn.cbd.int/anzhiyu-theme-static@1.1.9/icon/ali_iconfont_css.css"><link rel="stylesheet" href="https://cdn.cbd.int/anzhiyu-theme-static@1.0.0/aplayer/APlayer.min.css" media="print" onload="this.media='all'"><script src="https://cdn.cbd.int/anzhiyu-blog-static@1.0.1/js/APlayer.min.js"></script><script src="https://cdn.cbd.int/hexo-anzhiyu-music@1.0.1/assets/js/Meting2.min.js"></script><script src="https://cdn.cbd.int/pjax@0.2.8/pjax.min.js"></script><script>let pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
 var pjax = new Pjax({
