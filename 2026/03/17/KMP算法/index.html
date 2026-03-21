@@ -308,41 +308,78 @@ queueMicrotask(() => {
     console.warn.bind(console, "%c S013-782 %c 你现在正处于监控中.", "color:white; background-color:#d9534f", "")
   );
 });</script><script async src="/anzhiyu/random.js"></script><div class="js-pjax"><script>(() => {
-  const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
-  if ($mermaid.length === 0) return
-  const runMermaid = () => {
-    window.loadMermaid = true
-    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+  // 增加一个参数 isThemeChange，用于区分是正常渲染还是切换深浅色
+  const runMermaid = (isThemeChange = false) => {
+    const $mermaid = document.querySelectorAll('.mermaid-src')
+    if ($mermaid.length === 0) return
 
-    Array.from($mermaid).forEach((item, index) => {
-      const mermaidSrc = item.firstElementChild
-      const mermaidThemeConfig = '%%{init:{ \'theme\':\'' + theme + '\'}}%%\n'
-      const mermaidID = 'mermaid-' + index
-      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+    if (typeof mermaid === 'undefined') return
 
-      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const theme = isDark ? 'dark' : 'default'
 
-      const renderV10 = () => {
-        renderFn.then(({svg}) => {
-          mermaidSrc.insertAdjacentHTML('afterend', svg)
-        })
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: isDark ? 'dark' : 'default',
+      securityLevel: 'loose'
+    })
+
+    $mermaid.forEach((item, index) => {
+      const parent = item.parentNode;
+      const existingSvg = parent.querySelector('svg');
+
+      // 1. 如果是主题切换，必须先删掉旧的 SVG 才能重绘
+      if (isThemeChange && existingSvg) {
+        existingSvg.remove();
+        item.dataset.rendered = 'false'; // 重置锁
       }
 
-      const renderV9 = svg => {
-        mermaidSrc.insertAdjacentHTML('afterend', svg)
-      }
+      // 2. 【核心同步锁】：利用 HTML5 dataset。如果已经打上标记，瞬间拦截，防止异步重影
+      if (item.dataset.rendered === 'true') return;
+      item.dataset.rendered = 'true'; // 立即上锁
 
-      typeof renderFn === 'string' ? renderV9(renderFn) : renderV10()
+      const mermaidDefinition = item.textContent.trim()
+      if (!mermaidDefinition) return
+
+      const mermaidID = `mermaid-${Math.random().toString(36).substring(2, 10)}-${index}`
+
+      mermaid.render(mermaidID, mermaidDefinition).then(({ svg }) => {
+        // 渲染成功后插入
+        item.insertAdjacentHTML('afterend', svg)
+      }).catch(err => {
+        // 渲染失败时解锁，允许刷新后重试
+        item.dataset.rendered = 'false'; 
+        console.error('Mermaid 渲染失败:', err)
+      })
     })
   }
 
   const loadMermaid = () => {
-    window.loadMermaid ? runMermaid() : getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(runMermaid)
+    if (window.mermaid) {
+      runMermaid()
+    } else {
+      getScript('https://cdn.cbd.int/mermaid@11.12.2/dist/mermaid.min.js').then(() => runMermaid())
+    }
   }
 
-  anzhiyu.addGlobalFn('themeChange', runMermaid, 'mermaid')
+  // 【PJAX 防堆积修复】：确保事件监听器在整个浏览历史中只被挂载一次
+  if (!window.mermaidPluginInitialized) {
+    window.mermaidPluginInitialized = true; // 设置全局单例标记
+    
+    // 1. 首次加载执行
+    loadMermaid()
 
-  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+    // 2. 挂载 PJAX 事件
+    document.addEventListener('pjax:complete', loadMermaid)
+
+    // 3. 挂载主题切换事件（传入 true 触发强制清理）
+    if (typeof anzhiyu !== 'undefined') {
+      anzhiyu.addGlobalFn('themeChange', () => runMermaid(true), 'mermaid')
+    }
+  } else {
+    // 如果 PJAX 导致这段代码被重复 eval，直接调用单次渲染，不再重复注册事件监听
+    loadMermaid()
+  }
 })()</script><script>(()=>{
   const getGiscusTheme = theme => {
     return theme === 'dark' ? 'dark' : 'light'
